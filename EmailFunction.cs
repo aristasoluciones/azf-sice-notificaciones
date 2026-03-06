@@ -19,12 +19,12 @@ public class EmailFunction
     }
 
     [Function("ProcesarCorreo")]
-    public async Task Run([QueueTrigger("cola-correos-sice", Connection = "AzureWebJobsStorage")] EmailQueueMessage datos)
+    public async Task Run([QueueTrigger("colacorreossice", Connection = "AzureWebJobsStorage")] EmailQueueMessage datos)
     {
        Stream? streamAdjunto = null;
        if(!string.IsNullOrEmpty(datos.NombreBlobAdjunto))
        {
-            var container = _blobServiceClient.GetBlobContainerClient("adjuntos-sice-tmp");
+            var container = _blobServiceClient.GetBlobContainerClient("contenedortmpsice");
             var blob = container.GetBlobClient(datos.NombreBlobAdjunto);
             streamAdjunto = new MemoryStream();
             await blob.DownloadToAsync(streamAdjunto);
