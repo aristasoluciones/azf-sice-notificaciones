@@ -19,7 +19,7 @@ public class EmailFunction
     }
 
     [Function("ProcesarCorreo")]
-    public async Task Run([QueueTrigger("colacorreossice", Connection = "AzureWebJobsStorage")] EmailQueueMessage datos)
+    public async Task Run([QueueTrigger("colacorreossice", Connection = "StorageNegocioConnection")] EmailQueueMessage datos)
     {
        Stream? streamAdjunto = null;
        if(!string.IsNullOrEmpty(datos.NombreBlobAdjunto))
