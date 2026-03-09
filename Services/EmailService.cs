@@ -18,7 +18,6 @@ namespace sice.Functions.Notificaciones.Services
 
         public async Task EnviarEmailAsync(EmailQueueMessage datos, Stream adjunto=null) 
         {
-            _logger.LogInformation($"Intentando conectar a {_config["Smtp:Host"]} con usuario: {_config["Smtp:User"]}, puerto: {_config["Smtp:Port"]}");
             using var smtp = new SmtpClient(_config["Smtp:Host"])
             {
                 Port = int.Parse(_config["Smtp:Port"]!),

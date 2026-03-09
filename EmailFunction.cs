@@ -31,7 +31,6 @@ public class EmailFunction
             // --- Fase 1: Descarga del adjunto desde Blob Storage ---
             if (!string.IsNullOrEmpty(datos.NombreBlobAdjunto))
             {
-                _logger.LogInformation("Descargando adjunto '{NombreBlob}' del contenedor.", datos.NombreBlobAdjunto);
                 try
                 {
                     var container = _blobServiceClient.GetBlobContainerClient("contenedortmpsice");
@@ -39,7 +38,6 @@ public class EmailFunction
                     streamAdjunto = new MemoryStream();
                     await blob.DownloadToAsync(streamAdjunto);
                     streamAdjunto.Position = 0;
-                    _logger.LogInformation("Adjunto '{NombreBlob}' descargado correctamente.", datos.NombreBlobAdjunto);
                 }
                 catch (Exception ex)
                 {
@@ -49,11 +47,9 @@ public class EmailFunction
             }
 
             // --- Fase 2: Envío del correo ---
-            _logger.LogInformation("Enviando correo a '{Destinatario}' con asunto '{Asunto}'.", datos.Destinatario, datos.Asunto);
             try
             {
                 await _emailService.EnviarEmailAsync(datos, streamAdjunto!);
-                _logger.LogInformation("Correo enviado exitosamente a '{Destinatario}'.", datos.Destinatario);
             }
             catch (Exception ex)
             {
