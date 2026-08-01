@@ -47,7 +47,6 @@ public class EmailFunction
                 }
             }
 
-
             // --- Fase 2: Envío del correo ---
             try
             {
