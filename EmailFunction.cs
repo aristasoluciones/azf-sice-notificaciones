@@ -1,6 +1,7 @@
 using System;
 using Azure.Storage.Queues.Models;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Azure.Storage.Blobs;
 using sice.Functions.Notificaciones.Models;
@@ -12,12 +13,14 @@ public class EmailFunction
 {
     private readonly IEmailService _emailService;
     private readonly BlobServiceClient _blobServiceClient;
+    private readonly IConfiguration _config;
     private readonly ILogger<EmailFunction> _logger;
 
-    public EmailFunction(IEmailService emailService, BlobServiceClient blobServiceClient, ILogger<EmailFunction> logger)
+    public EmailFunction(IEmailService emailService, BlobServiceClient blobServiceClient, IConfiguration config, ILogger<EmailFunction> logger)
     {
         _emailService = emailService;
         _blobServiceClient = blobServiceClient;
+        _config = config;
         _logger = logger;
     }
 
@@ -33,7 +36,7 @@ public class EmailFunction
             {
                 try
                 {
-                    var contenedorTemporal = Environment.GetEnvironmentVariable("BlobStorage:ContenedorTemporal");
+                    var contenedorTemporal = _config["BlobStorage:ContenedorTemporal"];
                     var container = _blobServiceClient.GetBlobContainerClient(contenedorTemporal);
                     var blob = container.GetBlobClient(datos.NombreBlobAdjunto);
                     streamAdjunto = new MemoryStream();
