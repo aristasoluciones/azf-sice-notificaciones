@@ -22,7 +22,7 @@ public class EmailFunction
     }
 
     [Function("ProcesarCorreo")]
-    public async Task Run([QueueTrigger("colacorreossice", Connection = "StorageNegocioConnection")] EmailQueueMessage datos)
+    public async Task Run([QueueTrigger("%Queue:NombreCola%", Connection = "StorageNegocioConnection")] EmailQueueMessage datos)
     {
         Stream? streamAdjunto = null;
 
@@ -33,7 +33,8 @@ public class EmailFunction
             {
                 try
                 {
-                    var container = _blobServiceClient.GetBlobContainerClient("contenedortmpsice");
+                    var contenedorTemporal = Environment.GetEnvironmentVariable("BlobStorage:ContenedorTemporal");
+                    var container = _blobServiceClient.GetBlobContainerClient(contenedorTemporal);
                     var blob = container.GetBlobClient(datos.NombreBlobAdjunto);
                     streamAdjunto = new MemoryStream();
                     await blob.DownloadToAsync(streamAdjunto);
