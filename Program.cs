@@ -5,6 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using sice.Functions.Notificaciones.Services;
 
+// Legacy compatibilidad de store procedures con Npgsql 6 (igual que el panel)
+AppContext.SetSwitch("Npgsql.EnableStoredProcedureCompatMode", true);
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.ConfigureFunctionsWebApplication();
@@ -19,4 +23,9 @@ builder.Services.AddSingleton(sp => {
     return new BlobServiceClient(connectionString);
 });
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddScoped<INotificacionRepositorio, NotificacionRepositorio>();
+
 builder.Build().Run();
