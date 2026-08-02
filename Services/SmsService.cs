@@ -12,6 +12,9 @@ namespace sice.Functions.Notificaciones.Services
     /// </summary>
     public class SmsService : ISmsService
     {
+        /// <summary>Cliente HTTP con la validación de certificado del proveedor (ver Program).</summary>
+        public const string ClienteHttp = "sms";
+
         private readonly IConfiguration _config;
         private readonly ILogger<SmsService> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -37,7 +40,7 @@ namespace sice.Functions.Notificaciones.Services
                          $"&Message={Uri.EscapeDataString(datos.Mensaje)}" +
                          $"&MobileNumbers={Uri.EscapeDataString(datos.Destinatario)}";
 
-            var httpClient = _httpClientFactory.CreateClient();
+            var httpClient = _httpClientFactory.CreateClient(ClienteHttp);
             var respuesta = await httpClient.GetAsync(url);
 
             if (!respuesta.IsSuccessStatusCode)
