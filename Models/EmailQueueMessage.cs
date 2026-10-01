@@ -12,5 +12,7 @@ namespace sice.Functions.Notificaciones.Models
         public string Asunto { get; set; } = string.Empty;
         public string CuerpoHtml { get; set; } = string.Empty;
         public string? NombreBlobAdjunto { get; set; } // Nombre del archivo en el Storage si existe
+        // Renglón de una difusión: se registra el resultado del envío en la base.
+        public int? IdDifusionDetalle { get; set; }
     }
 }

@@ -10,6 +10,8 @@ namespace sice.Functions.Notificaciones;
 /// resultado en la base de datos.
 /// Cola propia, separada de la de correos: si el proveedor de SMS falla y sus
 /// mensajes se quedan reintentando, el correo sigue saliendo.
+/// El mensaje puede venir de una notificación externa (IdNotificacion) o de un
+/// renglón de difusión (IdDifusionDetalle); el control es el mismo para ambos.
 /// </summary>
 public class SmsFunction
 {
@@ -25,22 +27,27 @@ public class SmsFunction
     }
 
     [Function("ProcesarSms")]
-    public async Task Run([QueueTrigger("%Queue:NombreColaSms%", Connection = "StorageNegocioConnection")] SmsQueueMessage datos)
+    public async Task Run([QueueTrigger("%Queue:NombreColaSms%", Connection = "StorageNegocioConnection")] SmsQueueMessage datos, FunctionContext context)
     {
+        bool esDifusion = datos.IdDifusionDetalle.HasValue;
+        int id = datos.IdDifusionDetalle ?? datos.IdNotificacion;
+        string origen = esDifusion ? "difusión" : "notificación";
+
         // Cada intento de SMS se cobra: si la cola reprocesa un mensaje ya
         // enviado, el estatus lo delata y aquí se detiene.
-        string? status = await _repositorio.GetStatusAsync(datos.IdNotificacion);
+        string? status = esDifusion
+            ? await _repositorio.GetStatusDifusionAsync(id, "SMS")
+            : await _repositorio.GetStatusAsync(id);
 
         if (status == null)
         {
-            _logger.LogWarning("La notificación {Id} no existe; se descarta el mensaje.", datos.IdNotificacion);
+            _logger.LogWarning("El envío de {Origen} {Id} no existe; se descarta el mensaje.", origen, id);
             return;
         }
 
         if (status != "ENC")
         {
-            _logger.LogWarning("La notificación {Id} ya está en estatus '{Status}'; no se reenvía.",
-                datos.IdNotificacion, status);
+            _logger.LogWarning("El envío de {Origen} {Id} ya está en estatus '{Status}'; no se reenvía.", origen, id, status);
             return;
         }
 
@@ -54,11 +61,26 @@ public class SmsFunction
             // Falla de comunicación: se deja que la cola reintente, el estatus
             // sigue en 'ENC' y la comprobación de arriba evita el doble envío
             // cuando el mensaje sí llegó a salir.
-            _logger.LogError(ex, "Error al contactar al proveedor de SMS para la notificación {Id}.", datos.IdNotificacion);
+            _logger.LogError(ex, "Error al contactar al proveedor de SMS para el envío de {Origen} {Id}.", origen, id);
+
+            // En una difusión, el último intento deja el envío en error para que
+            // el avance no se quede esperando un mensaje que ya no se procesará.
+            if (esDifusion && Reintentos.EsUltimoIntento(context))
+            {
+                await _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", "ERROR");
+                return;
+            }
             throw;
         }
 
         // El proveedor respondió: el resultado es definitivo, no se reintenta.
-        await _repositorio.RegistrarEnvioAsync(datos.IdNotificacion, enviado ? "OK" : "ERROR");
+        if (esDifusion)
+        {
+            await _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", enviado ? "OK" : "ERROR");
+        }
+        else
+        {
+            await _repositorio.RegistrarEnvioAsync(id, enviado ? "OK" : "ERROR");
+        }
     }
 }
