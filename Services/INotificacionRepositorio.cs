@@ -7,5 +7,14 @@ namespace sice.Functions.Notificaciones.Services
 
         /// <summary>Deja el resultado del envío ("OK" o "ERROR").</summary>
         Task RegistrarEnvioAsync(int idNotificacion, string status);
+
+        /// <summary>
+        /// Estatus del envío de un renglón de difusión por un medio ("EMAIL" o "SMS");
+        /// null si el renglón no existe.
+        /// </summary>
+        Task<string?> GetStatusDifusionAsync(int idDetalle, string medio);
+
+        /// <summary>Deja el resultado del envío de un renglón de difusión ("OK" o "ERROR").</summary>
+        Task RegistrarEnvioDifusionAsync(int idDetalle, string medio, string status);
     }
 }

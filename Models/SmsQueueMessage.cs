@@ -7,6 +7,8 @@ namespace sice.Functions.Notificaciones.Models
     public class SmsQueueMessage
     {
         public int IdNotificacion { get; set; }
+        /// <summary>Renglón de una difusión; si viene lleno, IdNotificacion no aplica.</summary>
+        public int? IdDifusionDetalle { get; set; }
         public int IdConvocatoria { get; set; }
         public string Destinatario { get; set; } = string.Empty;
         public string Mensaje { get; set; } = string.Empty;
