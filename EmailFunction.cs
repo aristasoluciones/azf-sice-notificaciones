@@ -83,7 +83,11 @@ public class EmailFunction
 
     private async Task ProcesarDifusion(EmailQueueMessage datos, int idDetalle, FunctionContext context)
     {
-        string? status = await _repositorio.GetStatusDifusionAsync(idDetalle, "EMAIL");
+        // Si la base no responde ni con reintentos, la excepción devuelve el mensaje
+        // a la cola: todavía no se envió nada, así que reintentar es seguro.
+        string? status = await Reintentos.BaseDatosAsync(
+            () => _repositorio.GetStatusDifusionAsync(idDetalle, "EMAIL"),
+            _logger, $"leer el estatus del correo de difusión {idDetalle}");
 
         if (status == null)
         {
@@ -108,12 +112,16 @@ public class EmailFunction
             // Último intento: el envío queda en error en lugar de quedarse en cola.
             if (Reintentos.EsUltimoIntento(context))
             {
-                await _repositorio.RegistrarEnvioDifusionAsync(idDetalle, "EMAIL", "ERROR");
+                await Reintentos.RegistrarResultadoAsync(
+                    () => _repositorio.RegistrarEnvioDifusionAsync(idDetalle, "EMAIL", "ERROR"), _logger, "difusión (correo)", idDetalle, "ERROR");
                 return;
             }
             throw;
         }
 
-        await _repositorio.RegistrarEnvioDifusionAsync(idDetalle, "EMAIL", "OK");
+        // El correo ya salió: el mensaje no vuelve a la cola aunque la base no
+        // responda al registrarlo, para no enviarlo dos veces.
+        await Reintentos.RegistrarResultadoAsync(
+            () => _repositorio.RegistrarEnvioDifusionAsync(idDetalle, "EMAIL", "OK"), _logger, "difusión (correo)", idDetalle, "OK");
     }
 }
