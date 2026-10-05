@@ -12,6 +12,10 @@ namespace sice.Functions.Notificaciones;
 /// mensajes se quedan reintentando, el correo sigue saliendo.
 /// El mensaje puede venir de una notificación externa (IdNotificacion) o de un
 /// renglón de difusión (IdDifusionDetalle); el control es el mismo para ambos.
+///
+/// Regla: un SMS que ya salió nunca vuelve a la cola. Solo se deja reintentar a
+/// la cola cuando todavía no se envió nada (no se pudo leer el estatus o el
+/// proveedor no respondió).
 /// </summary>
 public class SmsFunction
 {
@@ -34,10 +38,12 @@ public class SmsFunction
         string origen = esDifusion ? "difusión" : "notificación";
 
         // Cada intento de SMS se cobra: si la cola reprocesa un mensaje ya
-        // enviado, el estatus lo delata y aquí se detiene.
-        string? status = esDifusion
-            ? await _repositorio.GetStatusDifusionAsync(id, "SMS")
-            : await _repositorio.GetStatusAsync(id);
+        // enviado, el estatus lo delata y aquí se detiene. Si la base no
+        // responde ni con reintentos, la excepción devuelve el mensaje a la
+        // cola: todavía no se envió nada, así que reintentar es seguro.
+        string? status = await Reintentos.BaseDatosAsync(
+            () => esDifusion ? _repositorio.GetStatusDifusionAsync(id, "SMS") : _repositorio.GetStatusAsync(id),
+            _logger, $"leer el estatus del envío de {origen} {id}");
 
         if (status == null)
         {
@@ -58,29 +64,26 @@ public class SmsFunction
         }
         catch (Exception ex)
         {
-            // Falla de comunicación: se deja que la cola reintente, el estatus
-            // sigue en 'ENC' y la comprobación de arriba evita el doble envío
-            // cuando el mensaje sí llegó a salir.
+            // Falla de comunicación con el proveedor: se deja que la cola
+            // reintente y el estatus sigue en 'ENC'.
             _logger.LogError(ex, "Error al contactar al proveedor de SMS para el envío de {Origen} {Id}.", origen, id);
 
             // En una difusión, el último intento deja el envío en error para que
             // el avance no se quede esperando un mensaje que ya no se procesará.
             if (esDifusion && Reintentos.EsUltimoIntento(context))
             {
-                await _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", "ERROR");
+                await Reintentos.RegistrarResultadoAsync(
+                    () => _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", "ERROR"), _logger, origen, id, "ERROR");
                 return;
             }
             throw;
         }
 
-        // El proveedor respondió: el resultado es definitivo, no se reintenta.
-        if (esDifusion)
-        {
-            await _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", enviado ? "OK" : "ERROR");
-        }
-        else
-        {
-            await _repositorio.RegistrarEnvioAsync(id, enviado ? "OK" : "ERROR");
-        }
+        // El proveedor respondió: el resultado es definitivo y el mensaje no
+        // vuelve a la cola aunque la base no responda al registrarlo.
+        string resultado = enviado ? "OK" : "ERROR";
+        await Reintentos.RegistrarResultadoAsync(
+            () => esDifusion ? _repositorio.RegistrarEnvioDifusionAsync(id, "SMS", resultado) : _repositorio.RegistrarEnvioAsync(id, resultado),
+            _logger, origen, id, resultado);
     }
 }
